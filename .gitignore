@@ -1,0 +1,7 @@
+bin/
+obj/
+TestResults/
+__MACOSX/
+.DS_Store
+._*
+~$*
