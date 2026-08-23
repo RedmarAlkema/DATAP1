@@ -1,6 +1,0 @@
-maak een C# project dat moet voldoen aan een vak dat gaat over disign patronen.
-De patronen, opdracht, rubriek, en design zijn allemaal uitgewerkt in het maje instructions.
-We implementeren alle must-have requirements. De nice-to-have requirements worden voorlopig niet geïmplementeerd.
-het moet een c# concolse applicatie zijn.
-Daarnaast zou ik vóór Codex begint deze punten expliciet maken: state actions horen bij een state in het algemeen, niet alleen SimpleState; de specificatie zegt dat een action bij een state of transition hoort. Ik zou daarom actions en AddAction/GetActions op StateComponent plaatsen. Ook moeten incorrecte FSM's wel volledig ingelezen en opgebouwd worden; pas daarna moeten de validators fouten melden. Anders kun je de meegeleverde invalid_*.fsm bestanden niet goed testen.
-Een ander belangrijk detail: TRANSITION_ACTION staat in het bestand vóór de transition zelf, omdat actions vóór transitions worden gedefinieerd. De Builder moet zo'n effect daarom tijdelijk bewaren, bijvoorbeeld in een dictionary op transition-id, en later koppelen wanneer BuildTransition() wordt uitgevoerd.
