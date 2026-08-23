@@ -128,6 +128,86 @@ public sealed class FsmViewerTests
         Assert.NotEmpty(fsm.GetTransitions());
     }
 
+    [Fact]
+    public void LoaderReportsUnknownParentWithLineContext()
+    {
+        string path = CreateTempFsmFile(
+            "STATE child missing_parent \"Child\" : SIMPLE;");
+
+        try
+        {
+            FsmBuildException exception = Assert.Throws<FsmBuildException>(() => new FsmLoader().Load(path));
+
+            Assert.Contains("Line 1", exception.Message);
+            Assert.Contains("unknown parent state 'missing_parent'", exception.Message);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void LoaderReportsUnknownActionOwnerWithLineContext()
+    {
+        string path = CreateTempFsmFile(
+            "STATE state1 _ \"State 1\" : SIMPLE;",
+            "ACTION missing_state \"entry\" : ENTRY_ACTION;");
+
+        try
+        {
+            FsmBuildException exception = Assert.Throws<FsmBuildException>(() => new FsmLoader().Load(path));
+
+            Assert.Contains("Line 2", exception.Message);
+            Assert.Contains("unknown state owner 'missing_state'", exception.Message);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void LoaderReportsUnknownTransitionTriggerWithLineContext()
+    {
+        string path = CreateTempFsmFile(
+            "STATE state1 _ \"State 1\" : SIMPLE;",
+            "STATE state2 _ \"State 2\" : SIMPLE;",
+            "TRANSITION t1 state1 -> state2 missing_trigger \"\";");
+
+        try
+        {
+            FsmBuildException exception = Assert.Throws<FsmBuildException>(() => new FsmLoader().Load(path));
+
+            Assert.Contains("Line 3", exception.Message);
+            Assert.Contains("unknown trigger 'missing_trigger'", exception.Message);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void LoaderReportsTransitionActionWithoutMatchingTransition()
+    {
+        string path = CreateTempFsmFile(
+            "STATE state1 _ \"State 1\" : SIMPLE;",
+            "ACTION t_missing \"effect\" : TRANSITION_ACTION;");
+
+        try
+        {
+            FsmBuildException exception = Assert.Throws<FsmBuildException>(() => new FsmLoader().Load(path));
+
+            Assert.Contains("unknown transition owner", exception.Message);
+            Assert.Contains("t_missing", exception.Message);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     [Theory]
     [InlineData("invalid_deterministic1.fsm", typeof(DeterminismValidator))]
     [InlineData("invalid_deterministic2.fsm", typeof(DeterminismValidator))]
@@ -198,6 +278,25 @@ public sealed class FsmViewerTests
 
         Assert.True(transition.IsAutomatic());
         Assert.Null(transition.Trigger);
+    }
+
+    [Fact]
+    public void DeterminismValidatorRejectsAutomaticTransitionsWithSameGuard()
+    {
+        var state1 = new SimpleState("state1", "State 1");
+        var state2 = new SimpleState("state2", "State 2");
+        var state3 = new SimpleState("state3", "State 3");
+        var fsm = new FiniteStateMachine();
+        fsm.AddState(state1);
+        fsm.AddState(state2);
+        fsm.AddState(state3);
+        fsm.AddTransition(new Transition("t1", state1, state2, null, "x > 3", null));
+        fsm.AddTransition(new Transition("t2", state1, state3, null, "x > 3", null));
+        var validator = new DeterminismValidator();
+
+        validator.Validate(fsm);
+
+        Assert.Contains(validator.GetErrors(), error => error.Message.Contains("Multiple automatic transitions"));
     }
 
     [Fact]
@@ -279,6 +378,13 @@ public sealed class FsmViewerTests
         }
 
         throw new DirectoryNotFoundException("Could not find Test FSMs fixture directory.");
+    }
+
+    private static string CreateTempFsmFile(params string[] lines)
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.fsm");
+        File.WriteAllLines(path, lines);
+        return path;
     }
 
     private sealed class CountingStateCreator : Core.Interfaces.StateCreator

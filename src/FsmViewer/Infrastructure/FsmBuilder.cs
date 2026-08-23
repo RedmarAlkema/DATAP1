@@ -37,21 +37,35 @@ public sealed class FsmBuilder : IFsmBuilder
 
     public void BuildState(string id, string parentId, string name, StateType type)
     {
+        EnsureUniqueId(id);
+
         StateCreator creator = stateCreators[type];
         StateComponent state = creator.Create(id, name);
         stateIndex[id] = state;
 
-        if (parentId != "_" && stateIndex.TryGetValue(parentId, out StateComponent? parent) && parent is CompoundState compoundState)
+        if (parentId == "_")
         {
-            compoundState.Add(state);
+            result.AddState(state);
             return;
         }
 
-        result.AddState(state);
+        if (!stateIndex.TryGetValue(parentId, out StateComponent? parent))
+        {
+            throw new FsmBuildException($"State '{id}' references unknown parent state '{parentId}'.");
+        }
+
+        if (parent is not CompoundState compoundState)
+        {
+            throw new FsmBuildException($"State '{id}' references parent '{parentId}', but that parent is not a CompoundState.");
+        }
+
+        compoundState.Add(state);
     }
 
     public void BuildTrigger(string id, string description)
     {
+        EnsureUniqueId(id);
+
         var trigger = new FsmTrigger(id, description);
         triggerIndex[id] = trigger;
         result.AddTrigger(trigger);
@@ -68,25 +82,55 @@ public sealed class FsmBuilder : IFsmBuilder
             return;
         }
 
-        if (stateIndex.TryGetValue(ownerId, out StateComponent? state))
+        if (!stateIndex.TryGetValue(ownerId, out StateComponent? state))
         {
-            state.AddAction(action);
+            throw new FsmBuildException($"Action references unknown state owner '{ownerId}'.");
         }
+
+        state.AddAction(action);
     }
 
     public void BuildTransition(string id, string sourceId, string destinationId, string? triggerId, string? guard)
     {
-        StateComponent source = stateIndex[sourceId];
-        StateComponent destination = stateIndex[destinationId];
-        FsmTrigger? trigger = triggerId is null ? null : triggerIndex.GetValueOrDefault(triggerId);
+        if (!stateIndex.TryGetValue(sourceId, out StateComponent? source))
+        {
+            throw new FsmBuildException($"Transition '{id}' references unknown source state '{sourceId}'.");
+        }
+
+        if (!stateIndex.TryGetValue(destinationId, out StateComponent? destination))
+        {
+            throw new FsmBuildException($"Transition '{id}' references unknown destination state '{destinationId}'.");
+        }
+
+        FsmTrigger? trigger = null;
+        if (triggerId is not null && !triggerIndex.TryGetValue(triggerId, out trigger))
+        {
+            throw new FsmBuildException($"Transition '{id}' references unknown trigger '{triggerId}'.");
+        }
+
         FsmAction? effect = pendingTransitionActions.GetValueOrDefault(id);
         var transition = new Transition(id, source, destination, trigger, guard, effect);
 
         result.AddTransition(transition);
+        pendingTransitionActions.Remove(id);
     }
 
     public FiniteStateMachine GetResult()
     {
+        if (pendingTransitionActions.Count > 0)
+        {
+            string ownerIds = string.Join(", ", pendingTransitionActions.Keys.Order());
+            throw new FsmBuildException($"Transition action references unknown transition owner(s): {ownerIds}.");
+        }
+
         return result;
+    }
+
+    private void EnsureUniqueId(string id)
+    {
+        if (stateIndex.ContainsKey(id) || triggerIndex.ContainsKey(id))
+        {
+            throw new FsmBuildException($"Identifier '{id}' is already defined.");
+        }
     }
 }

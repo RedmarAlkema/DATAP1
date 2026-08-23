@@ -9,6 +9,12 @@ while (string.IsNullOrWhiteSpace(filePath))
 {
     Console.Write("FSM file path: ");
     filePath = Console.ReadLine();
+
+    if (filePath is null)
+    {
+        Console.Error.WriteLine("No FSM file path provided.");
+        return 1;
+    }
 }
 
 if (!File.Exists(filePath))
@@ -64,6 +70,11 @@ static void RunMenu(FiniteStateMachine fsm, TextFsmPresenter presenter)
 
         string? choice = Console.ReadLine();
 
+        if (choice is null)
+        {
+            return;
+        }
+
         switch (choice)
         {
             case "1":
@@ -72,13 +83,23 @@ static void RunMenu(FiniteStateMachine fsm, TextFsmPresenter presenter)
             case "2":
                 Console.Write("State id: ");
                 string? stateId = Console.ReadLine();
-                StateComponent? state = stateId is null ? null : fsm.GetState(stateId);
+                if (stateId is null)
+                {
+                    return;
+                }
+
+                StateComponent? state = fsm.GetState(stateId);
                 Console.WriteLine(state is null ? "State not found." : presenter.Present(state));
                 break;
             case "3":
                 Console.Write("Transition id: ");
                 string? transitionId = Console.ReadLine();
-                Transition? transition = transitionId is null ? null : fsm.GetTransition(transitionId);
+                if (transitionId is null)
+                {
+                    return;
+                }
+
+                Transition? transition = fsm.GetTransition(transitionId);
                 Console.WriteLine(transition is null ? "Transition not found." : presenter.Present(transition));
                 break;
             case "4":

@@ -20,6 +20,16 @@ public sealed class DeterminismValidator : FsmValidator
                 AddError("Unguarded automatic transition cannot be combined with other outgoing transitions.", state.Id);
             }
 
+            foreach (IGrouping<string, Transition> guardGroup in outgoing
+                         .Where(transition => transition.IsAutomatic())
+                         .GroupBy(transition => NormalizeGuard(transition.Guard)))
+            {
+                if (guardGroup.Count() > 1)
+                {
+                    AddError($"Multiple automatic transitions use guard '{guardGroup.Key}'.", state.Id);
+                }
+            }
+
             foreach (IGrouping<string, Transition> triggerGroup in outgoing
                          .Where(transition => !transition.IsAutomatic())
                          .GroupBy(transition => transition.Trigger!.Id))

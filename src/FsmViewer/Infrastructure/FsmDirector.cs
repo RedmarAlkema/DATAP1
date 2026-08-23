@@ -18,34 +18,41 @@ public sealed class FsmDirector
 
         foreach (FsmToken token in tokens)
         {
-            switch (token.Type)
+            try
             {
-                case LineType.STATE:
-                    builder.BuildState(
-                        token.Tokens[0],
-                        token.Tokens[1],
-                        token.Tokens[2],
-                        Enum.Parse<StateType>(token.Tokens[3]));
-                    break;
-                case LineType.TRIGGER:
-                    builder.BuildTrigger(token.Tokens[0], token.Tokens[1]);
-                    break;
-                case LineType.ACTION:
-                    builder.BuildAction(
-                        token.Tokens[0],
-                        token.Tokens[1],
-                        Enum.Parse<ActionType>(token.Tokens[2]));
-                    break;
-                case LineType.TRANSITION:
-                    builder.BuildTransition(
-                        token.Tokens[0],
-                        token.Tokens[1],
-                        token.Tokens[2],
-                        EmptyToNull(token.Tokens[3]),
-                        EmptyToNull(token.Tokens[4]));
-                    break;
-                default:
-                    throw new InvalidOperationException($"Unsupported line type '{token.Type}'.");
+                switch (token.Type)
+                {
+                    case LineType.STATE:
+                        builder.BuildState(
+                            token.Tokens[0],
+                            token.Tokens[1],
+                            token.Tokens[2],
+                            Enum.Parse<StateType>(token.Tokens[3]));
+                        break;
+                    case LineType.TRIGGER:
+                        builder.BuildTrigger(token.Tokens[0], token.Tokens[1]);
+                        break;
+                    case LineType.ACTION:
+                        builder.BuildAction(
+                            token.Tokens[0],
+                            token.Tokens[1],
+                            Enum.Parse<ActionType>(token.Tokens[2]));
+                        break;
+                    case LineType.TRANSITION:
+                        builder.BuildTransition(
+                            token.Tokens[0],
+                            token.Tokens[1],
+                            token.Tokens[2],
+                            EmptyToNull(token.Tokens[3]),
+                            EmptyToNull(token.Tokens[4]));
+                        break;
+                    default:
+                        throw new InvalidOperationException($"Unsupported line type '{token.Type}'.");
+                }
+            }
+            catch (FsmBuildException exception)
+            {
+                throw new FsmBuildException($"Line {token.LineNumber}: {exception.Message}", exception);
             }
         }
     }

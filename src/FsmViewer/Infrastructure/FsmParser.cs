@@ -8,8 +8,11 @@ public sealed partial class FsmParser
     {
         var tokens = new List<FsmToken>();
 
+        int lineNumber = 0;
+
         foreach (string line in File.ReadLines(filePath))
         {
+            lineNumber++;
             string trimmed = line.Trim();
 
             if (string.IsNullOrWhiteSpace(trimmed) || trimmed.StartsWith('#'))
@@ -17,13 +20,13 @@ public sealed partial class FsmParser
                 continue;
             }
 
-            tokens.Add(ParseLine(trimmed));
+            tokens.Add(ParseLine(trimmed, lineNumber));
         }
 
         return tokens;
     }
 
-    private static FsmToken ParseLine(string line)
+    private static FsmToken ParseLine(string line, int lineNumber)
     {
         Match stateMatch = StateRegex().Match(line);
         if (stateMatch.Success)
@@ -33,7 +36,7 @@ public sealed partial class FsmParser
                 stateMatch.Groups["parent"].Value,
                 stateMatch.Groups["name"].Value,
                 stateMatch.Groups["type"].Value
-            ]);
+            ], lineNumber);
         }
 
         Match triggerMatch = TriggerRegex().Match(line);
@@ -42,7 +45,7 @@ public sealed partial class FsmParser
             return new FsmToken(LineType.TRIGGER, [
                 triggerMatch.Groups["id"].Value,
                 triggerMatch.Groups["description"].Value
-            ]);
+            ], lineNumber);
         }
 
         Match actionMatch = ActionRegex().Match(line);
@@ -52,19 +55,19 @@ public sealed partial class FsmParser
                 actionMatch.Groups["owner"].Value,
                 actionMatch.Groups["description"].Value,
                 actionMatch.Groups["type"].Value
-            ]);
+            ], lineNumber);
         }
 
         Match transitionMatch = TransitionRegex().Match(line);
         if (transitionMatch.Success)
         {
-            return ParseTransition(transitionMatch);
+            return ParseTransition(transitionMatch, lineNumber);
         }
 
-        throw new FormatException($"Could not parse FSM line: {line}");
+        throw new FormatException($"Line {lineNumber}: could not parse FSM line: {line}");
     }
 
-    private static FsmToken ParseTransition(Match match)
+    private static FsmToken ParseTransition(Match match, int lineNumber)
     {
         string id = match.Groups["id"].Value;
         string source = match.Groups["source"].Value;
@@ -99,7 +102,7 @@ public sealed partial class FsmParser
             }
         }
 
-        return new FsmToken(LineType.TRANSITION, [id, source, destination, triggerId, guard]);
+        return new FsmToken(LineType.TRANSITION, [id, source, destination, triggerId, guard], lineNumber);
     }
 
     private static string ExtractQuotedValue(string value)
